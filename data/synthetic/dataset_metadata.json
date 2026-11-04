@@ -1,0 +1,10 @@
+{
+  "status": "ALL_MODELS_TRAINED_AND_VERIFIED",
+  "tick_records": 250000,
+  "trips_records": 100000,
+  "demand_model": "demand_forecast_model.json",
+  "earnings_deadhead_model": "earnings_deadhead_model.json",
+  "wape": 0.2042,
+  "r2": 0.7968,
+  "updated_at": "2026-11-04T10:45:17.392622"
+}

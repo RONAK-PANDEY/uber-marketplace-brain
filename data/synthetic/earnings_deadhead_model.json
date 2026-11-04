@@ -1,0 +1,19 @@
+{
+  "model_type": "Driver Net Earnings & Deadhead Risk Predictor",
+  "trained_timestamp": "2026-11-04T10:45:17.301836",
+  "training_trips": 80000,
+  "validation_trips": 20000,
+  "mean_net_rate_per_min": 9.99,
+  "base_deadhead_prob": 0.666,
+  "payout_mae_inr": 120.44,
+  "vehicle_multipliers": {
+    "Uber Moto": 0.65,
+    "Uber Auto": 0.85,
+    "Uber Pool": 0.9,
+    "Uber Go": 1.0,
+    "Uber Comfort": 1.25,
+    "Uber Premier": 1.65,
+    "Uber XL": 1.55,
+    "Uber Package": 0.8
+  }
+}
