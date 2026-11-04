@@ -635,81 +635,89 @@ function AIAssistantScreen() {
 
     setActiveRoutingInfo(routingReason);
 
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 45000);
+    const driverKeywords = [
+      'drive', 'driver', 'ride', 'trip', 'fare', 'earning', 'surge', 'deadhead', 'delhi', 'ncr', 'gurugram', 'noida', 'stadium', 'airport', 'cp', 'connaught', 'cyber city', 'route', 'traffic', 'fuel', 'ev', 'charging', 'battery', 'shift', 'bonus', 'passenger', 'car', 'auto', 'moto', 'uber', 'cityplus', 'dispatch', 'payout', 'money', 'wait', 'queue', 'anti-crowding', 'fairness', 'goal', 'hours', 'km', 'kilometer', 'saket', 'aiims', 'dwarka', 'rohini', 'central zone', 'hotspot', 'reposition'
+    ];
+    const isDriverRelated = driverKeywords.some(k => promptText.toLowerCase().includes(k));
 
-      const res = await fetch(`/ollama/api/generate`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: targetModelId,
-          prompt: `You are an AI marketplace assistant for a CityPlus Uber Driver in Delhi NCR. Context: Driver Amit Kumar, DL 8C 7321, currently in Central Zone. Please answer directly, accurately, and concisely: ${promptText}`,
-          stream: false,
-          options: { num_predict: 220, temperature: 0.2 }
-        }),
-        signal: controller.signal,
-      });
-      clearTimeout(timeoutId);
+    const SYSTEM_PROMPT =
+      `You are CityPlus Driver Assistant, an AI expert helping ride-hailing drivers in Delhi NCR maximize their earnings and navigate surge zones.\n` +
+      `Driver Profile: Amit Kumar, DL 8C 7321, currently driving in Delhi NCR.\n` +
+      `Live Hotspots: Connaught Place (2.0x surge, ₹18.40/min), National Stadium North (2.4x surge, ₹17.10/min), Cyber City Gurugram (1.8x surge), Terminal 3 Airport (1.5x surge).\n\n` +
+      `Instructions:\n` +
+      `- If the driver asks a question about driving, trips, fares, earnings, surge hotspots, traffic, routes, deadhead empty miles, stadium dispersal, or EV charging in Delhi NCR, give a helpful, concise, and professional answer.\n` +
+      `- If the driver asks an off-topic question unrelated to driving, ride-hailing, or CityPlus (e.g., jokes, cooking, coding, history, general trivia, celebrities, homework, movies), you MUST respond with:\n` +
+      `"I can assist only with CityPlus Driver marketplace operations, net earnings analysis, surge navigation, deadhead return risk, and trip dispatch strategy in Delhi NCR. Please ask a driver- or ride-hailing-related question."`;
 
-      if (res.ok) {
-        const data = await res.json();
-        latencySec = Math.round((Date.now() - startTime) / 100) / 10;
-        let text = (data.response || '').trim();
-        if (!text && data.thinking) {
-          text = data.thinking.replace(/^Thinking Process:\s*/i, '').trim();
-        }
-        if (text) {
-          botReply = text;
-          responseSource = 'ollama-live';
-        }
-      }
-    } catch {
-      // Direct IP fallback
+    const fullPrompt = `${SYSTEM_PROMPT}\n\nDriver asks: ${promptText}\nAssistant:`;
+
+    // Attempt direct IP first (CORS is open on Ollama), then Vite proxy, then backend proxy
+    const endpointsToTry = [
+      { url: 'http://10.151.32.198:11434/api/generate', isOllama: true },
+      { url: '/ollama/api/generate', isOllama: true },
+      { url: '/api/driver/chat', isBackend: true },
+    ];
+
+    for (const ep of endpointsToTry) {
       try {
-        const controller2 = new AbortController();
-        const timeoutId2 = setTimeout(() => controller2.abort(), 20000);
-        const res2 = await fetch(`${OLLAMA_REMOTE_URL}/api/generate`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            model: targetModelId,
-            prompt: `Delhi NCR CityPlus Driver Assistant: ${promptText}`,
-            stream: false,
-            options: { num_predict: 180, temperature: 0.2 }
-          }),
-          signal: controller2.signal,
-        });
-        clearTimeout(timeoutId2);
-        if (res2.ok) {
-          const data2 = await res2.json();
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 45000);
+
+        let res;
+        if (ep.isOllama) {
+          res = await fetch(ep.url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              model: targetModelId,
+              prompt: fullPrompt,
+              stream: false,
+              options: { num_predict: 280, temperature: 0.2 },
+            }),
+            signal: controller.signal,
+          });
+        } else {
+          res = await fetch(ep.url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ message: promptText }),
+            signal: controller.signal,
+          });
+        }
+        clearTimeout(timeoutId);
+
+        if (res && res.ok) {
+          const data = await res.json();
           latencySec = Math.round((Date.now() - startTime) / 100) / 10;
-          let text2 = (data2.response || '').trim();
-          if (!text2 && data2.thinking) text2 = data2.thinking.trim();
-          if (text2) {
-            botReply = text2;
+          let text = (data.response || '').trim();
+          if (!text && data.thinking) {
+            text = data.thinking.replace(/^Thinking Process:[\s\S]*?(?=\n\n|$)/i, '').trim();
+          }
+          text = text.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+
+          if (text) {
+            if (!isDriverRelated) {
+              botReply = 'I can assist only with CityPlus Driver marketplace operations, net earnings analysis, surge navigation, deadhead return risk, and trip dispatch strategy in Delhi NCR. Please ask a driver- or ride-hailing-related question.';
+            } else {
+              botReply = text;
+            }
             responseSource = 'ollama-live';
+            break;
           }
         }
-      } catch {
-        // Fallback below
+      } catch (err) {
+        console.warn(`Attempt on ${ep.url} failed:`, err);
       }
     }
 
     if (!botReply) {
       latencySec = Math.round((Date.now() - startTime) / 100) / 10;
-      if (promptText.includes('Why is Central Zone') || promptText.includes('best')) {
-        botReply = 'Central Zone (CP) currently has 284 active passenger requests vs only 12 available cars (23.3:1 demand ratio). Mean wait time is 2.5 min, yielding ₹18.40 net/minute. Return trip probability is 96%, virtually eliminating unpaid return driving!';
-      } else if (promptText.includes('deadhead')) {
-        botReply = 'Trips to peripheral suburbs (like Far North Industrial) carry a 74% probability of driving back empty for 18 km (~₹110 in uncompensated fuel loss). Our policy engine recommends accepting return-heavy corridors such as Cyber City Gurugram or Airport T3.';
-      } else if (promptText.includes('Micro-shift') || promptText.includes('tonight')) {
-        botReply = 'Work the IGI Airport T3 queue until 8:40 PM for guaranteed ₹500+ fares. Repositioning to National Stadium North by 10:15 PM catches 4,200+ exiting spectators at 2.4x surge before downtown cools down.';
-      } else if (promptText.includes('Fairness') || promptText.includes('anti-crowding')) {
-        botReply = 'When 15+ drivers converge on a single stadium gate, queue times spike for everyone. Our fairness dispatch algorithm distributes drivers across Gate 2, Gate 4 North, and Outer Ring Road to maximize per-car earnings.';
-      } else if (promptText.includes('earning') || promptText.includes('fuel') || promptText.includes('hourly')) {
-        botReply = 'You have earned ₹2,850 net across 24 completed trips today (8.5 hrs online, avg ₹410/hr). Gross fare is ₹3,480, less ₹480 platform fee and ₹150 EV charging. You are 74% towards your weekly ₹25,000 goal!';
+      if (!isDriverRelated) {
+        botReply = 'I can assist only with CityPlus Driver marketplace operations, net earnings analysis, surge navigation, deadhead return risk, and trip dispatch strategy in Delhi NCR. Please ask a driver- or ride-hailing-related question.';
+        responseSource = 'guardrail';
       } else {
-        botReply = `In Delhi NCR, corporate corridors (Cyber City & Noida Sector 18) generate 42% of premium fares during morning and evening rush. Always maintain battery above 30% before the 9:30 PM stadium dispersal.`;
+        botReply = '⚠️ Could not connect to remote Ollama model at 10.151.32.198:11434. Please ensure the Ollama server is running on the local network.';
+        responseSource = 'offline-alert';
       }
     }
 

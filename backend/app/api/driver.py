@@ -118,21 +118,25 @@ async def driver_chat(body: DriverChatQuery) -> dict:
         intent = "Fast Operational & Dispatch"
 
     system_prompt = (
-        "You are an AI marketplace intelligence assistant for an Uber Driver in Delhi NCR. "
-        "Context: Driver Amit Kumar, DL 8C 7321, Central Zone (Connaught Place). "
-        "Be helpful, concise, accurate, and direct."
+        "You are CityPlus Driver Assistant, an AI expert helping ride-hailing drivers in Delhi NCR maximize their earnings and navigate surge zones.\n"
+        "Driver Profile: Amit Kumar, DL 8C 7321, currently driving in Delhi NCR.\n"
+        "Live Hotspots: Connaught Place (2.0x surge, ₹18.40/min), National Stadium North (2.4x surge, ₹17.10/min), Cyber City Gurugram (1.8x surge), Terminal 3 Airport (1.5x surge).\n\n"
+        "Instructions:\n"
+        "- If the driver asks a question about driving, trips, fares, earnings, surge hotspots, traffic, routes, deadhead empty miles, stadium dispersal, or EV charging in Delhi NCR, give a helpful, concise, and professional answer.\n"
+        "- If the driver asks an off-topic question unrelated to driving, ride-hailing, or CityPlus (e.g., jokes, cooking, coding, history, general trivia, celebrities, homework, movies), you MUST respond with:\n"
+        "\"I can assist only with CityPlus Driver marketplace operations, net earnings analysis, surge navigation, deadhead return risk, and trip dispatch strategy in Delhi NCR. Please ask a driver- or ride-hailing-related question.\""
     )
 
     payload = json.dumps({
         "model": model,
-        "prompt": f"{system_prompt}\nDriver asks: {body.message}",
+        "prompt": f"{system_prompt}\n\nQuestion: {body.message}\nAnswer:",
         "stream": False,
-        "options": {"num_predict": 180, "temperature": 0.2}
+        "options": {"num_predict": 280, "temperature": 0.2}
     }).encode("utf-8")
 
     try:
         req = urllib.request.Request(f"{ollama_url}/api/generate", data=payload, headers={"Content-Type": "application/json"})
-        with urllib.request.urlopen(req, timeout=30.0) as resp:
+        with urllib.request.urlopen(req, timeout=45.0) as resp:
             data = json.loads(resp.read().decode("utf-8"))
             text = (data.get("response") or "").strip()
             if not text and data.get("thinking"):
@@ -148,17 +152,12 @@ async def driver_chat(body: DriverChatQuery) -> dict:
     except Exception as exc:
         pass
 
-    # Fallback to grounded marketplace intelligence
-    fallback_text = (
-        f"Central Zone (CP) currently has 284 active passenger requests vs 12 available cars "
-        f"(23.3:1 ratio). Mean wait time is 2.5 min, yielding ~₹18.40 net/minute. Return trip "
-        f"probability is 96%, virtually eliminating unpaid return driving."
-    )
+    # Connection alert instead of fake pre-fed text
     return {
-        "response": fallback_text,
+        "response": "⚠️ Could not reach Ollama model at 10.151.32.198:11434. Please ensure the Ollama server is running and accessible on the local network.",
         "model": model_name,
         "model_id": model,
         "intent": intent,
-        "source": "marketplace-engine-grounded"
+        "source": "offline-alert"
     }
 
