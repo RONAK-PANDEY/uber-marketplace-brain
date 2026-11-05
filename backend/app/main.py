@@ -411,5 +411,9 @@ async def websocket_state(websocket: WebSocket) -> None:
                 world.eval_metrics["delta_pp"] = round(world.eval_metrics["fr_proposed"] - world.eval_metrics["fr_baseline"], 1)
                 await manager.broadcast(world.get_state_snapshot())
 
+            # 7. Cross-app sync relay (Rider <-> Driver <-> Admin)
+            elif mtype == "sync":
+                await manager.broadcast(msg)
+
     except WebSocketDisconnect:
         manager.disconnect(websocket)

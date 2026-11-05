@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import UberVectorMap, { DELHI_ZONES } from '../shared/components/UberVectorMap.jsx';
 import { marketplaceSync } from '../shared/marketplaceSync.js';
 
@@ -69,17 +69,48 @@ function HomeScreen({ onBookRide, pickup, dropoff, onSelectDestination, smartPic
   const [showPriceExplainer, setShowPriceExplainer] = useState(false);
   const [showAlternatives, setShowAlternatives] = useState(false);
   const [showSafetyModal, setShowSafetyModal] = useState(false);
-  const [showPickupBanner, setShowPickupBanner] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [wavEnabled, setWavEnabled] = useState(false);
+  const [toastMsg, setToastMsg] = useState('');
+
+  const showToast = (msg) => {
+    setToastMsg(msg);
+    setTimeout(() => setToastMsg(''), 3000);
+  };
+
+  const filteredZones = DELHI_ZONES.filter(z => 
+    z.id !== 'cp' && (
+      z.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+      z.sub.toLowerCase().includes(searchQuery.toLowerCase())
+    )
+  );
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0, position: 'relative' }}>
-      {/* Edge-to-Edge Vector City Map */}
+      {/* Toast Notification */}
+      {toastMsg && (
+        <div style={{
+          position: 'absolute', top: '70px', left: '50%', transform: 'translateX(-50%)',
+          background: '#111827', color: 'white', padding: '8px 16px', borderRadius: '20px',
+          fontSize: '11.5px', fontWeight: '800', zIndex: 150, boxShadow: '0 4px 16px rgba(0,0,0,0.3)',
+          display: 'flex', alignItems: 'center', gap: '6px', pointerEvents: 'none',
+        }}>
+          <span>✓</span> {toastMsg}
+        </div>
+      )}
+
+      {/* Edge-to-Edge Vector City Map (Interactive with Zone Clicking) */}
       <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>
         <UberVectorMap
           theme="light"
           pickupPoint={pickup}
           dropoffPoint={dropoff}
-          showRoute={false}
+          showRoute={Boolean(dropoff)}
+          selectedZone={dropoff}
+          onZoneSelect={(z) => {
+            onSelectDestination(z);
+            showToast(`Selected destination: ${z.name}`);
+          }}
           interactive={true}
         />
       </div>
@@ -95,7 +126,7 @@ function HomeScreen({ onBookRide, pickup, dropoff, onSelectDestination, smartPic
         <div onClick={() => setShowSearchModal(true)}
           style={{ flex: 1, background: 'white', borderRadius: '30px', padding: '9px 14px', display: 'flex', alignItems: 'center', gap: '10px', boxShadow: '0 4px 16px rgba(0,0,0,0.12)', cursor: 'pointer' }}>
           <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#111' }}/>
-          <span style={{ color: '#4b5563', fontWeight: '700', fontSize: '13px', flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          <span style={{ color: dropoff ? '#111' : '#4b5563', fontWeight: '700', fontSize: '13px', flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
             {dropoff ? `To: ${dropoff.name}` : 'Where to in Delhi NCR?'}
           </span>
           <div style={{ width: '26px', height: '26px', borderRadius: '50%', background: '#111', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
@@ -109,34 +140,7 @@ function HomeScreen({ onBookRide, pickup, dropoff, onSelectDestination, smartPic
         </button>
       </div>
 
-      {/* 1. Smart Pickup Suggestion Banner (Dismissible & Non-Clashing) */}
-      {showPickupBanner && (
-        <div style={{ position: 'relative', zIndex: 10, margin: '4px 14px 0' }}>
-          <div style={{ background: smartPickupApplied ? '#ecfdf5' : 'rgba(255,255,255,0.96)', border: `1.5px solid ${smartPickupApplied ? '#10b981' : '#e5e7eb'}`, borderRadius: '16px', padding: '10px 12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', boxShadow: '0 4px 14px rgba(0,0,0,0.08)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1 }}>
-              <span style={{ fontSize: '18px' }}>🚶‍♂️</span>
-              <div>
-                <p style={{ fontWeight: '800', fontSize: '11.5px', color: smartPickupApplied ? '#059669' : '#111' }}>
-                  {smartPickupApplied ? 'Smart Pickup: Gate 4 North Applied' : 'Smart Pickup Suggestion'}
-                </p>
-                <p style={{ fontSize: '10px', color: '#6b7280' }}>
-                  Walk 2m to north point • 4m wait instead of 11m
-                </p>
-              </div>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <button onClick={onToggleSmartPickup}
-                style={{ background: smartPickupApplied ? '#10b981' : '#111', color: 'white', fontSize: '10.5px', fontWeight: '800', border: 'none', padding: '6px 10px', borderRadius: '12px', cursor: 'pointer', whiteSpace: 'nowrap' }}>
-                {smartPickupApplied ? '✓ Applied' : 'Save 7 min'}
-              </button>
-              <button onClick={() => setShowPickupBanner(false)}
-                style={{ background: 'none', border: 'none', color: '#9ca3af', fontSize: '15px', cursor: 'pointer', padding: '2px 4px' }}>
-                ✕
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+
 
       {/* Bottom Floating Insights & Booking Sheet */}
       <div style={{ marginTop: 'auto', padding: '12px 14px', position: 'relative', zIndex: 10, display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -164,7 +168,7 @@ function HomeScreen({ onBookRide, pickup, dropoff, onSelectDestination, smartPic
                 <span style={{ fontWeight: '900', fontSize: '13px', color: '#111' }}>Surge Pricing +25% Active</span>
                 <span style={{ background: '#ffedd5', color: '#c2410c', fontSize: '9px', fontWeight: '800', padding: '1px 5px', borderRadius: '5px' }}>SURGE</span>
               </div>
-              <p style={{ fontSize: '10.5px', color: '#6b7280' }}>Prices are higher because high demand in Central Zone.</p>
+              <p style={{ fontSize: '10.5px', color: '#6b7280' }}>Prices adjusted to match peak demand across Connaught Place.</p>
             </div>
           </div>
           <button onClick={e => { e.stopPropagation(); onBookRide(); }}
@@ -242,7 +246,7 @@ function HomeScreen({ onBookRide, pickup, dropoff, onSelectDestination, smartPic
                     <p style={{ fontSize: '10.5px', color: '#6b7280' }}>2 min walk • 4 min car wait • Save ₹60</p>
                   </div>
                 </div>
-                <button onClick={() => { onToggleSmartPickup(); setShowAlternatives(false); }}
+                <button onClick={() => { onToggleSmartPickup(); setShowAlternatives(false); showToast('Smart pickup applied!'); }}
                   style={{ background: '#111', color: 'white', border: 'none', borderRadius: '10px', padding: '5px 10px', fontSize: '10.5px', fontWeight: '800', cursor: 'pointer' }}>
                   Select
                 </button>
@@ -268,16 +272,28 @@ function HomeScreen({ onBookRide, pickup, dropoff, onSelectDestination, smartPic
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '16px' }}>
               <div style={{ padding: '12px', background: '#f8fafc', borderRadius: '12px' }}>
-                <p style={{ fontWeight: '800', fontSize: '12.5px' }}>🔒 Verified Driver Identity & 4-Digit PIN</p>
+                <p style={{ fontWeight: '800', fontSize: '12.5px' }}>🔒 Verified Driver Identity & 4-Digit PIN (4821)</p>
                 <p style={{ fontSize: '11px', color: '#6b7280' }}>PIN required before vehicle ignition is unlocked.</p>
               </div>
-              <div style={{ padding: '12px', background: '#f8fafc', borderRadius: '12px' }}>
-                <p style={{ fontWeight: '800', fontSize: '12.5px' }}>♿ Wheelchair Accessible Vehicles (WAV)</p>
-                <p style={{ fontSize: '11px', color: '#6b7280' }}>Guaranteed ramp access and certified assistance drivers.</p>
+              <div style={{ padding: '12px', background: '#f8fafc', borderRadius: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <p style={{ fontWeight: '800', fontSize: '12.5px' }}>♿ Wheelchair Accessible Vehicles (WAV)</p>
+                  <p style={{ fontSize: '11px', color: '#6b7280' }}>Certified ramp access and trained assistance drivers.</p>
+                </div>
+                <button onClick={() => { setWavEnabled(!wavEnabled); showToast(wavEnabled ? 'WAV preference disabled' : 'WAV preference active!'); }}
+                  style={{ background: wavEnabled ? '#10b981' : '#e2e8f0', color: wavEnabled ? 'white' : '#475569', border: 'none', borderRadius: '12px', padding: '6px 10px', fontWeight: '800', fontSize: '11px', cursor: 'pointer' }}>
+                  {wavEnabled ? 'Enabled' : 'Enable'}
+                </button>
               </div>
-              <div style={{ padding: '12px', background: '#f8fafc', borderRadius: '12px' }}>
-                <p style={{ fontWeight: '800', fontSize: '12.5px' }}>🚨 112 Emergency Police Integration</p>
-                <p style={{ fontSize: '11px', color: '#6b7280' }}>One-tap link to local Delhi Police dispatch.</p>
+              <div style={{ padding: '12px', background: '#fef2f2', border: '1px solid #fee2e2', borderRadius: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <p style={{ fontWeight: '800', fontSize: '12.5px', color: '#991b1b' }}>🚨 112 Emergency Police Link</p>
+                  <p style={{ fontSize: '11px', color: '#b91c1c' }}>One-tap link to Delhi Police dispatch.</p>
+                </div>
+                <button onClick={() => showToast('Emergency link pinged Delhi Police SOS 112')}
+                  style={{ background: '#dc2626', color: 'white', border: 'none', borderRadius: '10px', padding: '6px 12px', fontWeight: '800', fontSize: '11px', cursor: 'pointer' }}>
+                  SOS
+                </button>
               </div>
             </div>
             <button onClick={() => setShowSafetyModal(false)} style={{ width: '100%', background: '#111', color: 'white', borderRadius: '14px', padding: '12px', fontWeight: '800', border: 'none', cursor: 'pointer' }}>
@@ -290,15 +306,31 @@ function HomeScreen({ onBookRide, pickup, dropoff, onSelectDestination, smartPic
       {/* Destination Picker Modal */}
       {showSearchModal && (
         <div style={{ position: 'absolute', inset: 0, background: 'white', zIndex: 70, display: 'flex', flexDirection: 'column', padding: '16px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '14px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
             <button onClick={() => setShowSearchModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px' }}><BackIcon/></button>
             <span style={{ fontWeight: '900', fontSize: '17px' }}>Choose Destination</span>
           </div>
+
+          {/* Search Input Filter */}
+          <div style={{ marginBottom: '12px', background: '#f1f5f9', borderRadius: '12px', padding: '8px 12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ fontSize: '14px' }}>🔍</span>
+            <input 
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              placeholder="Search destination, metro, or landmark..."
+              style={{ border: 'none', background: 'transparent', outline: 'none', fontSize: '13px', fontWeight: '600', width: '100%' }}
+              autoFocus
+            />
+            {searchQuery && (
+              <button onClick={() => setSearchQuery('')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', fontSize: '14px' }}>✕</button>
+            )}
+          </div>
+
           <p style={{ fontSize: '11.5px', fontWeight: '800', color: '#6b7280', marginBottom: '10px' }}>DELHI NCR COMMUTER HUBS</p>
           <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            {DELHI_ZONES.filter(z => z.id !== 'cp').map(z => (
+            {filteredZones.map(z => (
               <div key={z.id} onClick={() => { onSelectDestination(z); setShowSearchModal(false); onBookRide(); }}
-                style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 10px', borderBottom: '1px solid #f3f4f6', cursor: 'pointer' }}>
+                style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 10px', borderBottom: '1px solid #f3f4f6', cursor: 'pointer', borderRadius: '8px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                   <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: '#f3f4f6', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px' }}>
                     {z.type === 'airport' ? '✈️' : z.type === 'office' ? '🏢' : z.type === 'stadium' ? '🏟️' : '📍'}
@@ -322,11 +354,11 @@ function HomeScreen({ onBookRide, pickup, dropoff, onSelectDestination, smartPic
 
 /* Screen 1: Ride-Option Comparison */
 function ChooseRideScreen({ onBack, onConfirm, selectedRide, setSelectedRide, pickup, dropoff, promoCode, setPromoCode, paymentMode, setPaymentMode }) {
-  const baseMultiplier = dropoff?.id === 'cyber' ? 2.8 : dropoff?.id === 'airport' ? 2.2 : dropoff?.id === 'noida' ? 2.4 : dropoff?.id === 'stadium' ? 1.8 : 1.0;
+  const baseMultiplier = dropoff?.id === 'cyber' ? 2.8 : dropoff?.id === 'airport' ? 2.2 : dropoff?.id === 'noida' ? 2.4 : dropoff?.id === 'stadium' ? 1.8 : 1.2;
 
   const rides = [
     { id: 'moto', name: 'CityPlus Moto', desc: 'Fast bike rides in traffic', seats: 1, eta: '2 min', fare: Math.round(38 * baseMultiplier), tag: 'FASTEST', icon: '🛵' },
-    { id: 'auto', name: 'CityPlus Auto', desc: 'No bargaining direct auto', seats: 3, eta: '2 min', fare: Math.round(65 * baseMultiplier), tag: 'POPULAR', icon: '🛺' },
+    { id: 'auto', name: 'CityPlus Auto', desc: 'Direct meter auto rickshaw', seats: 3, eta: '2 min', fare: Math.round(65 * baseMultiplier), tag: 'POPULAR', icon: '🛺' },
     { id: 'pool', name: 'CityPlus Share', desc: 'Carpool & split fare', seats: 2, eta: '5 min', fare: Math.round(85 * baseMultiplier), tag: 'SAVE 30%', icon: '👥' },
     { id: 'go', name: 'CityPlus Go', desc: 'Compact comfortable sedans', seats: 4, eta: '3 min', fare: Math.round(120 * baseMultiplier), tag: 'STANDARD', icon: '🚗' },
     { id: 'comfort', name: 'CityPlus Comfort', desc: 'Newer cars, extra legroom', seats: 4, eta: '4 min', fare: Math.round(160 * baseMultiplier), tag: 'TOP RATED', icon: '🚘' },
@@ -351,7 +383,7 @@ function ChooseRideScreen({ onBack, onConfirm, selectedRide, setSelectedRide, pi
       </div>
 
       {/* Expanded Route Preview Map */}
-      <div style={{ height: '240px', position: 'relative', flexShrink: 0 }}>
+      <div style={{ height: '200px', position: 'relative', flexShrink: 0 }}>
         <UberVectorMap
           theme="light"
           pickupPoint={pickup}
@@ -360,7 +392,7 @@ function ChooseRideScreen({ onBack, onConfirm, selectedRide, setSelectedRide, pi
           interactive={false}
         />
         <div style={{ position: 'absolute', bottom: '10px', left: '14px', background: 'white', borderRadius: '14px', padding: '6px 12px', boxShadow: '0 4px 12px rgba(0,0,0,0.12)', zIndex: 10, fontSize: '11px', fontWeight: '800' }}>
-          📍 To: {dropoff?.name || 'Cyber City'}
+          📍 To: {dropoff?.name || 'Cyber City, Gurugram'}
         </div>
       </div>
 
@@ -393,6 +425,22 @@ function ChooseRideScreen({ onBack, onConfirm, selectedRide, setSelectedRide, pi
 
       {/* Bottom Pinned Confirmation Bar */}
       <div style={{ padding: '10px 14px 14px', borderTop: '1px solid #f3f4f6', background: 'white', flexShrink: 0 }}>
+        {/* Payment mode selector */}
+        <div style={{ display: 'flex', gap: '6px', marginBottom: '8px', alignItems: 'center', overflowX: 'auto', paddingBottom: '2px' }}>
+          <span style={{ fontSize: '11px', color: '#64748b', fontWeight: '700', flexShrink: 0 }}>Payment:</span>
+          {[
+            { id: 'wallet', label: 'Cash Wallet (₹842)' },
+            { id: 'upi', label: 'UPI / Google Pay' },
+            { id: 'cash', label: 'Cash' },
+            { id: 'card', label: 'Card **** 4819' },
+          ].map(p => (
+            <button key={p.id} onClick={() => setPaymentMode(p.id)}
+              style={{ padding: '4px 8px', borderRadius: '8px', fontSize: '10px', fontWeight: '800', border: '1px solid #cbd5e1', background: paymentMode === p.id ? '#111' : '#f8fafc', color: paymentMode === p.id ? 'white' : '#475569', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+              {p.label}
+            </button>
+          ))}
+        </div>
+
         {/* Promo code pills */}
         <div style={{ display: 'flex', gap: '6px', marginBottom: '10px', alignItems: 'center' }}>
           <span style={{ fontSize: '11px', color: '#64748b', fontWeight: '700' }}>Promo:</span>
@@ -418,7 +466,7 @@ function ChooseRideScreen({ onBack, onConfirm, selectedRide, setSelectedRide, pi
 }
 
 /* Screen 2: Booking Progress */
-function BookingScreen({ onFound }) {
+function BookingScreen({ onFound, onCancel }) {
   useEffect(() => {
     const unsub = marketplaceSync.subscribe(msg => {
       if (msg.type === 'RIDE_ACCEPTED') {
@@ -428,7 +476,7 @@ function BookingScreen({ onFound }) {
 
     const t = setTimeout(() => {
       onFound({ driverName: 'Rohit Singh', rating: '4.94', car: 'Honda City EV - DL 8C 7321' });
-    }, 3500);
+    }, 4000);
 
     return () => {
       unsub();
@@ -449,20 +497,32 @@ function BookingScreen({ onFound }) {
         <div style={{ fontSize: '38px' }}>🚗</div>
       </div>
       <p style={{ fontWeight: '900', fontSize: '17px', color: '#111', marginBottom: '4px' }}>Connecting to Nearby Drivers</p>
-      <p style={{ fontSize: '12px', color: '#64748b' }}>Dispatching via CityPlus Fair Matching Algorithm</p>
+      <p style={{ fontSize: '12px', color: '#64748b', marginBottom: '32px' }}>Dispatching via CityPlus Fair Matching Algorithm</p>
+
+      <button onClick={onCancel}
+        style={{ padding: '12px 24px', borderRadius: '24px', border: '1.5px solid #cbd5e1', background: 'white', color: '#ef4444', fontWeight: '800', fontSize: '13px', cursor: 'pointer' }}>
+        ✕ Cancel Request
+      </button>
     </div>
   );
 }
 
 /* Screen 3: Arriving in 2 min */
-function ArrivingScreen({ onComplete, secondsLeft, driver, pickup, dropoff, safetyPin }) {
+function ArrivingScreen({ onBack, onComplete, secondsLeft, driver, pickup, dropoff, safetyPin }) {
   const [showCallModal, setShowCallModal] = useState(false);
   const [callDuration, setCallDuration] = useState(18);
+  const [isMuted, setIsMuted] = useState(false);
   const [showMessageDrawer, setShowMessageDrawer] = useState(false);
   const [chatMessages, setChatMessages] = useState([
     { sender: 'driver', text: 'Namaste! I am on my way in a White Honda City EV.' }
   ]);
   const [chatInput, setChatInput] = useState('');
+  const [toastMsg, setToastMsg] = useState('');
+
+  const showToast = (msg) => {
+    setToastMsg(msg);
+    setTimeout(() => setToastMsg(''), 3000);
+  };
 
   useEffect(() => {
     let t = null;
@@ -489,12 +549,24 @@ function ArrivingScreen({ onComplete, secondsLeft, driver, pickup, dropoff, safe
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0, background: 'white', position: 'relative' }}>
+      {/* Toast Notification */}
+      {toastMsg && (
+        <div style={{
+          position: 'absolute', top: '70px', left: '50%', transform: 'translateX(-50%)',
+          background: '#111827', color: 'white', padding: '8px 16px', borderRadius: '20px',
+          fontSize: '11.5px', fontWeight: '800', zIndex: 150, boxShadow: '0 4px 16px rgba(0,0,0,0.3)',
+          display: 'flex', alignItems: 'center', gap: '6px', pointerEvents: 'none',
+        }}>
+          <span>✓</span> {toastMsg}
+        </div>
+      )}
+
       {/* Header */}
       <div style={{ padding: '10px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #f3f4f6', zIndex: 10, flexShrink: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <button onClick={onBack} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', padding: '4px' }}>
           <BackIcon/>
           <span style={{ fontWeight: '900', fontSize: '16px' }}>Arriving in {mins} min</span>
-        </div>
+        </button>
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '12px', padding: '3px 8px' }}>
           <ShieldIcon/>
           <span style={{ fontSize: '11.5px', fontWeight: '900', color: '#1e40af' }}>PIN: {safetyPin}</span>
@@ -521,7 +593,13 @@ function ArrivingScreen({ onComplete, secondsLeft, driver, pickup, dropoff, safe
       <div style={{ padding: '14px 16px', background: 'white', borderTop: '1px solid #f3f4f6', boxShadow: '0 -4px 18px rgba(0,0,0,0.06)', zIndex: 10, flexShrink: 0 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
           <p style={{ fontSize: '11.5px', fontWeight: '800', color: '#10b981' }}>● Your driver is on the way!</p>
-          <span style={{ fontSize: '10.5px', color: '#64748b' }}>Share trip status</span>
+          <button onClick={() => {
+            navigator.clipboard?.writeText?.(window.location.href);
+            showToast('Live tracking link copied to clipboard!');
+          }}
+            style={{ fontSize: '10.5px', color: '#2563eb', fontWeight: '700', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+            Share trip status →
+          </button>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '14px' }}>
           <div style={{ width: '46px', height: '46px', borderRadius: '50%', background: 'linear-gradient(135deg, #f97316, #ef4444)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: '900', fontSize: '18px' }}>
@@ -550,11 +628,14 @@ function ArrivingScreen({ onComplete, secondsLeft, driver, pickup, dropoff, safe
             <div style={{ width: '74px', height: '74px', borderRadius: '50%', background: 'linear-gradient(135deg, #f97316, #ef4444)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 14px', fontSize: '28px', fontWeight: '900' }}>
               R
             </div>
-            <p style={{ fontSize: '20px', fontWeight: '900' }}>Rohit Singh</p>
+            <p style={{ fontSize: '20px', fontWeight: '900' }}>{driver?.driverName || 'Rohit Singh'}</p>
             <p style={{ fontSize: '12px', color: '#10b981', marginTop: '4px' }}>In-App Audio Call Connected (00:{String(callDuration).padStart(2, '0')})</p>
           </div>
           <div style={{ display: 'flex', gap: '24px' }}>
-            <button style={{ width: '52px', height: '52px', borderRadius: '50%', background: 'rgba(255,255,255,0.15)', border: 'none', color: 'white', fontSize: '18px', cursor: 'pointer' }}>🔇</button>
+            <button onClick={() => { setIsMuted(!isMuted); showToast(isMuted ? 'Unmuted' : 'Muted'); }}
+              style={{ width: '52px', height: '52px', borderRadius: '50%', background: isMuted ? '#f97316' : 'rgba(255,255,255,0.15)', border: 'none', color: 'white', fontSize: '18px', cursor: 'pointer' }}>
+              {isMuted ? '🔇' : '🎙️'}
+            </button>
             <button onClick={() => setShowCallModal(false)} style={{ width: '52px', height: '52px', borderRadius: '50%', background: '#ef4444', border: 'none', color: 'white', fontSize: '20px', cursor: 'pointer' }}>📞</button>
           </div>
         </div>
@@ -566,8 +647,8 @@ function ArrivingScreen({ onComplete, secondsLeft, driver, pickup, dropoff, safe
           <div style={{ width: '100%', height: '70%', background: 'white', borderTopLeftRadius: '24px', borderTopRightRadius: '24px', display: 'flex', flexDirection: 'column' }}>
             <div style={{ padding: '14px 16px', borderBottom: '1px solid #f3f4f6', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
-                <p style={{ fontWeight: '900', fontSize: '14px' }}>Chat with Rohit Singh</p>
-                <p style={{ fontSize: '10.5px', color: '#10b981' }}>● Online • Honda City EV</p>
+                <p style={{ fontWeight: '900', fontSize: '14px' }}>Chat with {driver?.driverName || 'Rohit Singh'}</p>
+                <p style={{ fontSize: '10.5px', color: '#10b981' }}>● Online • {driver?.car || 'Honda City EV'}</p>
               </div>
               <button onClick={() => setShowMessageDrawer(false)} style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer' }}>✕</button>
             </div>
@@ -610,7 +691,7 @@ function CompletedScreen({ fare, rating, setRating, onDone }) {
         <CheckIcon/>
       </div>
       <p style={{ fontWeight: '900', fontSize: '24px', color: '#111', marginBottom: '4px' }}>Ride Completed!</p>
-      <p style={{ fontWeight: '900', fontSize: '38px', color: '#111', margin: '4px 0 16px' }}>₹{fare || 142}</p>
+      <p style={{ fontWeight: '900', fontSize: '38px', color: '#111', margin: '4px 0 16px' }}>₹{(fare || 142) + tip}</p>
 
       <div style={{ width: '100%', background: '#f8fafc', borderRadius: '18px', padding: '14px 18px', marginBottom: '20px', display: 'flex', justifyContent: 'space-around', border: '1px solid #f1f5f9' }}>
         <div>
@@ -646,7 +727,7 @@ function CompletedScreen({ fare, rating, setRating, onDone }) {
         </div>
       </div>
 
-      <button onClick={onDone}
+      <button onClick={() => onDone(tip)}
         style={{ width: '100%', background: '#111', color: 'white', borderRadius: '16px', padding: '15px', fontWeight: '900', fontSize: '15px', border: 'none', cursor: 'pointer', boxShadow: '0 4px 16px rgba(0,0,0,0.2)' }}>
         Done
       </button>
@@ -657,6 +738,12 @@ function CompletedScreen({ fare, rating, setRating, onDone }) {
 /* Screen 5: CityPlus Wallet */
 function WalletScreen({ balance, onAddBalance }) {
   const [showAddMoney, setShowAddMoney] = useState(false);
+  const [toastMsg, setToastMsg] = useState('');
+
+  const showToast = (msg) => {
+    setToastMsg(msg);
+    setTimeout(() => setToastMsg(''), 3000);
+  };
 
   const transactions = [
     { desc: 'Trip to Connaught Place', date: 'Today, 2:45 PM', amount: -142, icon: '🚗' },
@@ -665,7 +752,19 @@ function WalletScreen({ balance, onAddBalance }) {
   ];
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0, background: 'white', padding: '18px 16px', overflowY: 'auto' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0, background: 'white', padding: '18px 16px', overflowY: 'auto', position: 'relative' }}>
+      {/* Toast Notification */}
+      {toastMsg && (
+        <div style={{
+          position: 'absolute', top: '16px', left: '50%', transform: 'translateX(-50%)',
+          background: '#111827', color: 'white', padding: '8px 16px', borderRadius: '20px',
+          fontSize: '11.5px', fontWeight: '800', zIndex: 150, boxShadow: '0 4px 16px rgba(0,0,0,0.3)',
+          display: 'flex', alignItems: 'center', gap: '6px', pointerEvents: 'none',
+        }}>
+          <span>✓</span> {toastMsg}
+        </div>
+      )}
+
       <p style={{ fontWeight: '900', fontSize: '24px', marginBottom: '14px' }}>CityPlus Wallet</p>
       <div style={{ background: 'linear-gradient(135deg, #111827, #1f2937)', borderRadius: '22px', padding: '22px', color: 'white', marginBottom: '22px', boxShadow: '0 8px 24px rgba(0,0,0,0.2)' }}>
         <p style={{ fontSize: '12px', color: '#9ca3af', fontWeight: '700' }}>CityPlus Cash Balance</p>
@@ -704,7 +803,11 @@ function WalletScreen({ balance, onAddBalance }) {
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px', marginBottom: '18px' }}>
               {[100, 250, 500, 1000].map(amt => (
-                <button key={amt} onClick={() => { onAddBalance(amt); setShowAddMoney(false); alert(`Added ₹${amt} to your CityPlus Wallet!`); }}
+                <button key={amt} onClick={() => {
+                  onAddBalance(amt);
+                  setShowAddMoney(false);
+                  showToast(`Added ₹${amt} to CityPlus Wallet!`);
+                }}
                   style={{ padding: '12px 4px', borderRadius: '12px', background: '#f8fafc', border: '1.5px solid #e2e8f0', fontWeight: '900', fontSize: '13px', cursor: 'pointer' }}>
                   +₹{amt}
                 </button>
@@ -714,6 +817,149 @@ function WalletScreen({ balance, onAddBalance }) {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+/* Screen 6: Activity & Trip History */
+function ActivityScreen({ onRebook }) {
+  const pastTrips = [
+    { id: 'trip-904', pickup: 'Connaught Place', dropoff: 'Cyber City, Gurugram', date: 'Today, 2:15 PM', fare: 160, car: 'Honda City EV', driver: 'Rohit Singh', status: 'Completed', icon: '🚗' },
+    { id: 'trip-882', pickup: 'Terminal 3 - IGI Airport', dropoff: 'Connaught Place', date: 'Yesterday, 8:45 PM', fare: 320, car: 'Tata Tigor EV', driver: 'Vikram Mehta', status: 'Completed', icon: '⚡' },
+    { id: 'trip-741', pickup: 'National Stadium', dropoff: 'City Center Mall, Saket', date: '01 Nov, 10:15 PM', fare: 140, car: 'Maruti Dzire', driver: 'Sanjay Kumar', status: 'Completed', icon: '🚙' },
+    { id: 'trip-612', pickup: 'Nehru Place IT Hub', dropoff: 'Noida Sector 18', date: '30 Oct, 6:30 PM', fare: 180, car: 'CityPlus Moto', driver: 'Amit Verma', status: 'Completed', icon: '🛵' },
+  ];
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0, background: 'white', padding: '18px 16px', overflowY: 'auto' }}>
+      <p style={{ fontWeight: '900', fontSize: '24px', marginBottom: '14px' }}>Activity</p>
+      <p style={{ fontSize: '12px', fontWeight: '800', color: '#64748b', marginBottom: '10px' }}>PAST RIDES & TRIPS</p>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+        {pastTrips.map(t => (
+          <div key={t.id} style={{ border: '1px solid #f1f5f9', borderRadius: '16px', padding: '14px', background: '#f8fafc' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ fontSize: '20px' }}>{t.icon}</span>
+                <div>
+                  <p style={{ fontWeight: '800', fontSize: '13px', color: '#111' }}>{t.dropoff}</p>
+                  <p style={{ fontSize: '10.5px', color: '#64748b' }}>From {t.pickup} • {t.date}</p>
+                </div>
+              </div>
+              <span style={{ fontWeight: '900', fontSize: '15px', color: '#111' }}>₹{t.fare}</span>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: '1px solid #e2e8f0', paddingTop: '8px', marginTop: '6px' }}>
+              <span style={{ fontSize: '11px', color: '#10b981', fontWeight: '800' }}>● {t.status} ({t.driver})</span>
+              <button onClick={() => onRebook(t.dropoff)}
+                style={{ background: '#111', color: 'white', border: 'none', borderRadius: '10px', padding: '5px 12px', fontSize: '11px', fontWeight: '800', cursor: 'pointer' }}>
+                Rebook
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* Screen 7: Profile & Safety Settings */
+function ProfileScreen() {
+  const [safetyPinEnabled, setSafetyPinEnabled] = useState(true);
+  const [wavPref, setWavPref] = useState(false);
+  const [quietRide, setQuietRide] = useState(true);
+  const [toastMsg, setToastMsg] = useState('');
+
+  const showToast = (msg) => {
+    setToastMsg(msg);
+    setTimeout(() => setToastMsg(''), 3000);
+  };
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0, background: 'white', padding: '18px 16px', overflowY: 'auto', position: 'relative' }}>
+      {toastMsg && (
+        <div style={{
+          position: 'absolute', top: '16px', left: '50%', transform: 'translateX(-50%)',
+          background: '#111827', color: 'white', padding: '8px 16px', borderRadius: '20px',
+          fontSize: '11.5px', fontWeight: '800', zIndex: 150, boxShadow: '0 4px 16px rgba(0,0,0,0.3)',
+          display: 'flex', alignItems: 'center', gap: '6px', pointerEvents: 'none',
+        }}>
+          <span>✓</span> {toastMsg}
+        </div>
+      )}
+
+      {/* User Card */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '22px' }}>
+        <div style={{ width: '60px', height: '60px', borderRadius: '50%', background: 'linear-gradient(135deg, #3b82f6, #1d4ed8)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: '24px', fontWeight: '900' }}>
+          RS
+        </div>
+        <div>
+          <p style={{ fontWeight: '900', fontSize: '18px', color: '#111' }}>Rahul Sharma</p>
+          <p style={{ fontSize: '12px', color: '#64748b' }}>⭐ 4.92 Rating • 48 rides completed</p>
+          <p style={{ fontSize: '11px', color: '#3b82f6', fontWeight: '700' }}>CityPlus Gold Member</p>
+        </div>
+      </div>
+
+      {/* Safety & Preferences Settings */}
+      <p style={{ fontSize: '11.5px', fontWeight: '900', color: '#64748b', marginBottom: '10px' }}>SAFETY & VERIFICATION</p>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '22px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px', background: '#f8fafc', borderRadius: '12px', border: '1px solid #f1f5f9' }}>
+          <div>
+            <p style={{ fontWeight: '800', fontSize: '13px' }}>4-Digit Safety PIN (4821)</p>
+            <p style={{ fontSize: '11px', color: '#64748b' }}>Verify ride before ignition unlocks</p>
+          </div>
+          <button onClick={() => { setSafetyPinEnabled(!safetyPinEnabled); showToast(safetyPinEnabled ? 'PIN disabled' : 'Safety PIN active'); }}
+            style={{ background: safetyPinEnabled ? '#10b981' : '#cbd5e1', color: 'white', border: 'none', borderRadius: '12px', padding: '5px 10px', fontWeight: '800', fontSize: '11px', cursor: 'pointer' }}>
+            {safetyPinEnabled ? 'ON' : 'OFF'}
+          </button>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px', background: '#f8fafc', borderRadius: '12px', border: '1px solid #f1f5f9' }}>
+          <div>
+            <p style={{ fontWeight: '800', fontSize: '13px' }}>Wheelchair Accessible (WAV)</p>
+            <p style={{ fontSize: '11px', color: '#64748b' }}>Request ramp-equipped vehicles</p>
+          </div>
+          <button onClick={() => { setWavPref(!wavPref); showToast(wavPref ? 'WAV preference off' : 'WAV preference active'); }}
+            style={{ background: wavPref ? '#10b981' : '#cbd5e1', color: 'white', border: 'none', borderRadius: '12px', padding: '5px 10px', fontWeight: '800', fontSize: '11px', cursor: 'pointer' }}>
+            {wavPref ? 'ON' : 'OFF'}
+          </button>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px', background: '#f8fafc', borderRadius: '12px', border: '1px solid #f1f5f9' }}>
+          <div>
+            <p style={{ fontWeight: '800', fontSize: '13px' }}>Quiet Ride Preference</p>
+            <p style={{ fontSize: '11px', color: '#64748b' }}>Notify driver to keep cabin quiet</p>
+          </div>
+          <button onClick={() => { setQuietRide(!quietRide); showToast(quietRide ? 'Quiet preference off' : 'Quiet preference active'); }}
+            style={{ background: quietRide ? '#10b981' : '#cbd5e1', color: 'white', border: 'none', borderRadius: '12px', padding: '5px 10px', fontWeight: '800', fontSize: '11px', cursor: 'pointer' }}>
+            {quietRide ? 'ON' : 'OFF'}
+          </button>
+        </div>
+      </div>
+
+      {/* Saved Places */}
+      <p style={{ fontSize: '11.5px', fontWeight: '900', color: '#64748b', marginBottom: '10px' }}>SAVED PLACES</p>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '22px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 12px', background: '#f8fafc', borderRadius: '12px' }}>
+          <span>🏠</span>
+          <div>
+            <p style={{ fontWeight: '800', fontSize: '12.5px' }}>Home</p>
+            <p style={{ fontSize: '10.5px', color: '#64748b' }}>Connaught Place, New Delhi</p>
+          </div>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 12px', background: '#f8fafc', borderRadius: '12px' }}>
+          <span>🏢</span>
+          <div>
+            <p style={{ fontWeight: '800', fontSize: '12.5px' }}>Work</p>
+            <p style={{ fontSize: '10.5px', color: '#64748b' }}>Cyber City, Gurugram</p>
+          </div>
+        </div>
+      </div>
+
+      <button onClick={() => showToast('Logged in as Rahul Sharma')}
+        style={{ width: '100%', background: '#f1f5f9', color: '#475569', borderRadius: '14px', padding: '12px', fontWeight: '800', fontSize: '12px', border: 'none', cursor: 'pointer' }}>
+        CityPlus v1.0 • Delhi NCR Edition
+      </button>
     </div>
   );
 }
@@ -807,7 +1053,7 @@ export default function RiderApp() {
   const [rating, setRating] = useState(5);
   const [walletBalance, setWalletBalance] = useState(842.50);
   const [viewMode, setViewMode] = useState('single');
-  const [zoomScale, setZoomScale] = useState(1.0); // 0.85, 0.95, 1.0
+  const [zoomScale, setZoomScale] = useState(0.95);
   const [assignedDriver, setAssignedDriver] = useState(null);
   const [promoCode, setPromoCode] = useState('');
   const [paymentMode, setPaymentMode] = useState('wallet');
@@ -818,7 +1064,7 @@ export default function RiderApp() {
   const safetyPin = '4821';
 
   const [pickup, setPickup] = useState({ x: 225, y: 310, name: 'Connaught Place' });
-  const [dropoff, setDropoff] = useState({ x: 260, y: 720, name: 'Cyber City, Gurugram' });
+  const [dropoff, setDropoff] = useState({ x: 260, y: 720, name: 'Cyber City, Gurugram', id: 'cyber' });
 
   function handleToggleSmartPickup() {
     if (!smartPickupApplied) {
@@ -850,8 +1096,9 @@ export default function RiderApp() {
   function handleTab(tab) {
     setActiveTab(tab);
     if (tab === 'home') setScreen(0);
+    else if (tab === 'activity') setScreen(6);
     else if (tab === 'wallet') setScreen(5);
-    else setScreen(0);
+    else if (tab === 'profile') setScreen(7);
   }
 
   function handleConfirmRide(fare) {
@@ -868,10 +1115,29 @@ export default function RiderApp() {
     });
   }
 
+  function handleCancelBooking() {
+    marketplaceSync.publish('RIDE_CANCELLED', { riderName: 'Rahul Sharma' });
+    setScreen(0);
+  }
+
   function handleDriverFound(driverInfo) {
     setAssignedDriver(driverInfo);
     setArrivingSeconds(120);
     setScreen(3);
+  }
+
+  function handleRebook(destinationName) {
+    const found = DELHI_ZONES.find(z => z.name.toLowerCase() === destinationName.toLowerCase()) || DELHI_ZONES[1];
+    setDropoff(found);
+    setScreen(1);
+    setActiveTab('home');
+  }
+
+  function handleRideFinished(tipAmount) {
+    const totalDeducted = (confirmedFare || 120) + tipAmount;
+    setWalletBalance(prev => Math.max(0, prev - totalDeducted));
+    setScreen(0);
+    setActiveTab('home');
   }
 
   function renderScreen(index) {
@@ -904,10 +1170,11 @@ export default function RiderApp() {
           />
         );
       case 2:
-        return <BookingScreen onFound={handleDriverFound}/>;
+        return <BookingScreen onFound={handleDriverFound} onCancel={handleCancelBooking}/>;
       case 3:
         return (
           <ArrivingScreen
+            onBack={() => setScreen(0)}
             onComplete={() => setScreen(4)}
             secondsLeft={arrivingSeconds}
             driver={assignedDriver}
@@ -917,15 +1184,22 @@ export default function RiderApp() {
           />
         );
       case 4:
-        return <CompletedScreen fare={confirmedFare} rating={rating} setRating={setRating} onDone={() => { setScreen(0); setActiveTab('home'); }}/>;
+        return <CompletedScreen fare={confirmedFare} rating={rating} setRating={setRating} onDone={handleRideFinished}/>;
       case 5:
         return <WalletScreen balance={walletBalance} onAddBalance={amt => setWalletBalance(b => b + amt)}/>;
+      case 6:
+        return <ActivityScreen onRebook={handleRebook}/>;
+      case 7:
+        return <ProfileScreen/>;
       default:
         return null;
     }
   }
 
-  const screenNames = ['1. Home Map', '2. Choose Ride', '3. Booking...', '4. Arriving (Trip)', '5. Ride Completed', '6. Wallet'];
+  const screenNames = [
+    '1. Home Map', '2. Choose Ride', '3. Booking...', '4. Arriving (Trip)',
+    '5. Ride Completed', '6. Wallet', '7. Activity', '8. Profile'
+  ];
 
   return (
     <div style={{
@@ -946,7 +1220,7 @@ export default function RiderApp() {
           <div style={{ width: '1.5px', height: '32px', background: '#374151' }}/>
           <div>
             <p style={{ fontWeight: '800', fontSize: '18px', color: 'white', lineHeight: 1.2 }}>Rider App</p>
-            <p style={{ fontSize: '12px', color: '#9ca3af', lineHeight: 1.2 }}>Book a Ride. Move Freely.</p>
+            <p style={{ fontSize: '12px', color: '#9ca3af', lineHeight: 1.2 }}>Book a Ride. Move Freely across Delhi NCR.</p>
           </div>
         </div>
 
@@ -967,14 +1241,14 @@ export default function RiderApp() {
                 background: viewMode === 'grid' ? '#3b82f6' : 'transparent', color: 'white',
                 transition: 'all 0.15s ease',
               }}>
-              🖼️ All 6 Screens (Grid)
+              🖼️ All Screens (Grid)
             </button>
           </div>
 
           {/* Scale Zoom Controls */}
           {viewMode === 'single' && (
             <div style={{ display: 'flex', background: '#1f2937', padding: '4px', borderRadius: '20px', border: '1px solid #374151' }}>
-              {[0.85, 0.95, 1.0].map(s => (
+              {[0.80, 0.90, 0.95, 1.0].map(s => (
                 <button key={s} onClick={() => setZoomScale(s)}
                   style={{
                     padding: '6px 10px', borderRadius: '16px', fontSize: '11px', fontWeight: '800', border: 'none', cursor: 'pointer',
@@ -996,9 +1270,15 @@ export default function RiderApp() {
       {/* SINGLE INTERACTIVE PHONE VIEW */}
       {viewMode === 'single' && (
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px' }}>
-          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', justifyContent: 'center', maxWidth: '700px' }}>
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', justifyContent: 'center', maxWidth: '800px' }}>
             {screenNames.map((name, i) => (
-              <button key={i} onClick={() => setScreen(i)}
+              <button key={i} onClick={() => {
+                setScreen(i);
+                if (i === 0) setActiveTab('home');
+                else if (i === 5) setActiveTab('wallet');
+                else if (i === 6) setActiveTab('activity');
+                else if (i === 7) setActiveTab('profile');
+              }}
                 style={{
                   padding: '7px 15px', borderRadius: '20px', fontSize: '12px', fontWeight: '800', border: 'none', cursor: 'pointer',
                   background: screen === i ? 'white' : '#1f2937', color: screen === i ? '#111' : '#9ca3af',
@@ -1009,7 +1289,7 @@ export default function RiderApp() {
             ))}
           </div>
 
-          <PhoneFrame activeTab={activeTab} onTabClick={handleTab} showBottomNav={screen === 0 || screen === 5} zoomScale={zoomScale}>
+          <PhoneFrame activeTab={activeTab} onTabClick={handleTab} showBottomNav={screen === 0 || screen === 5 || screen === 6 || screen === 7} zoomScale={zoomScale}>
             {renderScreen(screen)}
 
             {/* Demand-Aware Scheduling Modal */}
@@ -1039,7 +1319,10 @@ export default function RiderApp() {
                     ))}
                   </div>
 
-                  <button onClick={() => { setShowScheduleModal(false); alert(`Ride successfully reserved for ${scheduledTime}! Fare locked.`); }}
+                  <button onClick={() => {
+                    setShowScheduleModal(false);
+                    alert(`Ride reserved for ${scheduledTime}! Locked fare guarantee applied.`);
+                  }}
                     style={{ width: '100%', background: '#111', color: 'white', borderRadius: '16px', padding: '15px', fontWeight: '900', fontSize: '14.5px', border: 'none', cursor: 'pointer' }}>
                     Lock Fare & Reserve for {scheduledTime}
                   </button>
@@ -1050,21 +1333,21 @@ export default function RiderApp() {
         </div>
       )}
 
-      {/* ALL 6 SCREENS GRID VIEW */}
+      {/* ALL SCREENS GRID VIEW */}
       {viewMode === 'grid' && (
         <div style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))',
           gap: '32px',
           width: '100%',
-          maxWidth: '1320px',
+          maxWidth: '1400px',
           justifyItems: 'center',
           marginTop: '10px',
         }}>
           {screenNames.map((name, i) => (
             <div key={i} onClick={() => { setScreen(i); setViewMode('single'); }} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px', cursor: 'pointer' }} title="Click to interact with this screen">
               <p style={{ fontSize: '13px', fontWeight: '800', color: '#60a5fa' }}>{name} (Click to interact)</p>
-              <PhoneFrame activeTab={i === 5 ? 'wallet' : 'home'} onTabClick={() => {}} showBottomNav={i === 0 || i === 5}>
+              <PhoneFrame activeTab={i === 5 ? 'wallet' : i === 6 ? 'activity' : i === 7 ? 'profile' : 'home'} onTabClick={() => {}} showBottomNav={i === 0 || i === 5 || i === 6 || i === 7} zoomScale={0.88}>
                 {renderScreen(i)}
               </PhoneFrame>
             </div>

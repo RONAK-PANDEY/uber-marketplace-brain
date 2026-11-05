@@ -9,14 +9,20 @@ from collections import Counter
 
 try:
     from app.forecasting import sim_adapter
+    from app.forecasting import demand_model
+    from app.forecasting.common import DATA_LABEL
+    from app.forecasting.policy import ProposedPolicy, baseline_policy
 except ImportError:
     try:
         from ..forecasting import sim_adapter
+        from ..forecasting import demand_model
+        from ..forecasting.common import DATA_LABEL
+        from ..forecasting.policy import ProposedPolicy, baseline_policy
     except ImportError:
         import sim_adapter
-from forecasting import demand_model
-from forecasting.common import DATA_LABEL
-from forecasting.policy import ProposedPolicy, baseline_policy
+        from forecasting import demand_model
+        from forecasting.common import DATA_LABEL
+        from forecasting.policy import ProposedPolicy, baseline_policy
 
 EVAL_SEED = 2024
 TICKS = 720

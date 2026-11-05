@@ -10,7 +10,7 @@ export default defineConfig({
       '/api': 'http://localhost:8000',
       '/ws': { target: 'ws://localhost:8000', ws: true },
       '/ollama': {
-        target: 'http://10.151.32.198:11434',
+        target: process.env.OLLAMA_URL || 'http://10.151.32.198:11434',
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/ollama/, ''),
         timeout: 120000,

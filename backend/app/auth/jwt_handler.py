@@ -10,7 +10,11 @@ TODO:
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
-from jose import JWTError, jwt
+try:
+    from jose import JWTError, jwt
+except ImportError:
+    import jwt
+    JWTError = getattr(jwt, "PyJWTError", Exception)
 from fastapi import HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi import Depends

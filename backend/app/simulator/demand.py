@@ -4,10 +4,10 @@ lambda_per_min = Base x DayFactor x WeatherFactor x EventFactor x PriceFactor / 
 from dataclasses import dataclass
 import numpy as np
 try:
-    from app.simulator.city import
+    from app.simulator.city import N_ZONES, ZONE_TYPES, WEEKEND_FACTOR, get_base_demand
 except ImportError:
     try:
-        from .city import
+        from .city import N_ZONES, ZONE_TYPES, WEEKEND_FACTOR, get_base_demand
     except ImportError:
         from city import N_ZONES, ZONE_TYPES, WEEKEND_FACTOR, get_base_demand
 

@@ -3,10 +3,10 @@
 Idle -> Assigned -> Driving_to_pickup -> Waiting -> On_trip -> Drop_off -> Idle. Deps: stdlib + city."""
 from enum import Enum
 try:
-    from app.simulator.city import
+    from app.simulator.city import DIST
 except ImportError:
     try:
-        from .city import
+        from .city import DIST
     except ImportError:
         from city import DIST
 

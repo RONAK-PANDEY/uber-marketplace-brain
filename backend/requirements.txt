@@ -11,6 +11,9 @@ sqlalchemy==2.0.30
 aiosqlite==0.20.0
 numpy==1.26.4
 scipy==1.13.0
+pandas>=2.2.0
+lightgbm>=4.3.0
+PyJWT>=2.8.0
 pytest==8.2.0
 pytest-asyncio==0.23.6
 

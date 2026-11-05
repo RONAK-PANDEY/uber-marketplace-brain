@@ -62,7 +62,11 @@ const BackIcon = () => (
 );
 
 /* ─────────────────────────── CONSTANTS ─────────────────────────── */
-const OLLAMA_REMOTE_URL = 'http://10.151.32.198:11434';
+// Primary: Vite dev-server proxy (/ollama → OLLAMA_URL env var or localhost)
+// Fallback 1: Direct LAN IP (set VITE_OLLAMA_IP env var, or change the string below)
+// Fallback 2: Same machine localhost
+const OLLAMA_LAN_IP = import.meta.env.VITE_OLLAMA_IP || '10.151.32.198';
+const OLLAMA_REMOTE_URL = `http://${OLLAMA_LAN_IP}:11434`;
 const OLLAMA_MODELS = [
   { id: 'sam860/dolphin3-llama3.2:3b', name: 'Dolphin3 LLaMA 3.2 (3B)', tag: 'Fast Dispatch' },
   { id: 'huihui_ai/smallthinker-abliterated:3b', name: 'SmallThinker 3B', tag: 'Causal Reasoning' },
@@ -651,11 +655,12 @@ function AIAssistantScreen() {
 
     const fullPrompt = `${SYSTEM_PROMPT}\n\nDriver asks: ${promptText}\nAssistant:`;
 
-    // Attempt direct IP first (CORS is open on Ollama), then Vite proxy, then backend proxy
+    // Priority: 1) backend proxy  2) Vite /ollama proxy (→ remote LAN IP)  3) direct LAN IP fetch  4) localhost
     const endpointsToTry = [
-      { url: 'http://10.151.32.198:11434/api/generate', isOllama: true },
-      { url: '/ollama/api/generate', isOllama: true },
       { url: '/api/driver/chat', isBackend: true },
+      { url: '/ollama/api/generate', isOllama: true },
+      { url: `${OLLAMA_REMOTE_URL}/api/generate`, isOllama: true },
+      { url: 'http://localhost:11434/api/generate', isOllama: true },
     ];
 
     for (const ep of endpointsToTry) {
@@ -986,10 +991,14 @@ export default function DriverApp() {
   useEffect(() => {
     const unsub = marketplaceSync.subscribe(msg => {
       if (msg.type === 'RIDE_REQUESTED') {
+        const p = msg.payload?.pickup;
+        const pickupName = (typeof p === 'object' && p !== null) ? p.name : p;
+        const d = msg.payload?.dropoff;
+        const dropoffName = (typeof d === 'object' && d !== null) ? d.name : d;
         setIncomingRequest({
           riderName: msg.payload?.riderName || 'Rahul Sharma',
-          pickup: msg.payload?.pickup?.name || 'Connaught Place',
-          dropoff: msg.payload?.dropoff?.name || 'Cyber City',
+          pickup: pickupName || 'Connaught Place',
+          dropoff: dropoffName || 'Cyber City',
           fare: msg.payload?.fare || 160,
           rideType: msg.payload?.rideType || 'CityPlus Go',
           distance: '1.4 km away',

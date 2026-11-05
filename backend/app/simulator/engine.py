@@ -2,8 +2,14 @@
 *** SYNTHETIC DATA: all output (snapshots, logs, CSVs, summaries) is simulated, not real. ***
 Deps: numpy, pandas, stdlib."""
 import time
+from dataclasses import dataclass
+from typing import Any, Dict, List, Optional
 import numpy as np
-import pandas as pd
+
+try:
+    import pandas as pd
+except ImportError:
+    pd = None
 try:
     from app.simulator.city import N_ZONES, ZONE_TYPES, get_base_demand
     from app.simulator.demand import DemandGenerator
@@ -131,6 +137,8 @@ class Engine:
     # ---- output ----
     def history(self):
         """Long DataFrame (one row per tick x zone), every row labeled SYNTHETIC."""
+        if pd is None:
+            raise ImportError("pandas is required for history() and save_csv(). Install with: pip install pandas")
         rows = [dict(t=s["t"], hour=s["hour"], zone=z, zone_type=ZONE_TYPES[z], weather=s["weather"],
                      requests=int(s["requests"][z]), idle_drivers=int(s["idle_drivers"][z]),
                      incoming_drivers=int(s["incoming_drivers"][z]), finishing_15=int(s["finishing_15"][z]),
@@ -141,10 +149,55 @@ class Engine:
 
     def save_csv(self, path="synthetic_sim_log.csv"):
         """Save history with a SYNTHETIC banner as line 1 (read with pd.read_csv(path, comment='#'))."""
+        if pd is None:
+            raise ImportError("pandas is required for history() and save_csv(). Install with: pip install pandas")
         with open(path, "w") as f:
             f.write(f"# {LABEL}\n")
             self.history().to_csv(f, index=False)
         return path
+
+
+@dataclass
+class SimulatorState:
+    tick: int
+    fulfilment_rate: float
+    zones: List[Dict[str, Any]]
+    total_requests: int
+    completed_requests: int
+
+
+class SimulatorEngine(Engine):
+    """Facade for Engine conforming to the SimulatorEngine test & API contract."""
+    def __init__(self, seed: int = 42, n_drivers: int = 550, **kwargs):
+        super().__init__(seed=seed, n_drivers=n_drivers, **kwargs)
+
+    @property
+    def tick_count(self) -> int:
+        return self.t
+
+    def tick(self) -> SimulatorState:
+        self.step()
+        reqs = self.stats["requests"]
+        matched = self.stats["matched"]
+        completed = self.stats["completed"]
+        fr = float(matched / max(1, reqs))
+        snap = self._snaps[-1]
+        zones = [
+            {
+                "id": z,
+                "demand": int(snap["requests"][z]),
+                "supply": int(snap["idle_drivers"][z]),
+                "unfulfilled": int(snap["unfulfilled"][z]),
+            }
+            for z in range(N_ZONES)
+        ]
+        return SimulatorState(
+            tick=self.t,
+            fulfilment_rate=fr,
+            zones=zones,
+            total_requests=reqs,
+            completed_requests=completed,
+        )
 
 def print_summary(e, title=""):
     h, s = e.history(), e.stats

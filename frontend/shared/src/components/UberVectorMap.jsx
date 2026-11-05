@@ -161,14 +161,14 @@ export default function UberVectorMap({
     if (!interactive) return;
     e.preventDefault();
     const factor = e.deltaY < 0 ? 1.12 : 0.88;
-    setZoom(z => Math.max(0.75, Math.min(2.4, z * factor)));
+    setZoom(z => Math.max(0.4, Math.min(2.4, z * factor)));
   }
 
   function zoomIn() {
     setZoom(z => Math.min(2.4, z + 0.25));
   }
   function zoomOut() {
-    setZoom(z => Math.max(0.75, z - 0.25));
+    setZoom(z => Math.max(0.4, z - 0.25));
   }
   function resetView() {
     setZoom(1);

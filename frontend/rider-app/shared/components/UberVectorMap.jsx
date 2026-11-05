@@ -139,7 +139,7 @@ export default function UberVectorMap({
     if (!interactive) return;
     e.preventDefault();
     const factor = e.deltaY < 0 ? 1.15 : 0.85;
-    setZoom(z => Math.max(0.7, Math.min(2.5, z * factor)));
+    setZoom(z => Math.max(0.4, Math.min(2.5, z * factor)));
   }
 
   function resetView() {
@@ -420,7 +420,7 @@ export default function UberVectorMap({
           +
         </button>
         <button
-          onClick={e => { e.stopPropagation(); setZoom(z => Math.max(0.7, z * 0.8)); }}
+          onClick={e => { e.stopPropagation(); setZoom(z => Math.max(0.4, z * 0.8)); }}
           style={{
             width: '32px', height: '32px', borderRadius: '50%', background: isDark ? '#1e293b' : 'white',
             border: `1px solid ${isDark ? '#334155' : '#e5e7eb'}`, color: isDark ? 'white' : '#111',
@@ -445,21 +445,7 @@ export default function UberVectorMap({
         </button>
       </div>
 
-      {/* Traffic Legend (bottom left) */}
-      <div style={{ position: 'absolute', left: '12px', top: '70px', background: isDark ? 'rgba(15,20,28,0.85)' : 'rgba(255,255,255,0.88)', borderRadius: '14px', padding: '6px 10px', display: 'flex', alignItems: 'center', gap: '8px', zIndex: 20, backdropFilter: 'blur(4px)', border: `1px solid ${isDark ? '#232d40' : '#e5e7eb'}` }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-          <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#10b981' }}/>
-          <span style={{ fontSize: '9px', fontWeight: '700', color: isDark ? '#94a3b8' : '#4b5563' }}>Fast</span>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-          <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#f59e0b' }}/>
-          <span style={{ fontSize: '9px', fontWeight: '700', color: isDark ? '#94a3b8' : '#4b5563' }}>Slow</span>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-          <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#ef4444' }}/>
-          <span style={{ fontSize: '9px', fontWeight: '700', color: isDark ? '#94a3b8' : '#4b5563' }}>Delay</span>
-        </div>
-      </div>
+
     </div>
   );
 }

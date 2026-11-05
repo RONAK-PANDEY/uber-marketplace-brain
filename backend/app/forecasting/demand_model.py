@@ -5,10 +5,17 @@ Train:  python -m forecasting.demand_model --seed 7 --ticks 10080
 import argparse
 import os
 import pickle
-
-import lightgbm as lgb
 import numpy as np
-import pandas as pd
+
+try:
+    import lightgbm as lgb
+except ImportError:
+    lgb = None
+
+try:
+    import pandas as pd
+except ImportError:
+    pd = None
 
 from .common import (DATA_LABEL, HORIZON, LAGS, MAX_LAG, all_zones, request_matrix,
                      time_feats, weather_value)
@@ -72,8 +79,19 @@ def train(df, path=MODEL_PATH, train_seed=None, seed=0):
 
 def load(path=MODEL_PATH):
     if path not in _cache:
-        with open(path, "rb") as f:
-            _cache[path] = pickle.load(f)
+        if os.path.exists(path):
+            with open(path, "rb") as f:
+                _cache[path] = pickle.load(f)
+        else:
+            try:
+                from app.simulator.city import N_ZONES
+            except ImportError:
+                N_ZONES = 12
+            _cache[path] = {
+                "zones": list(range(N_ZONES)),
+                "train_seed": None,
+                "model": None,
+            }
     return _cache[path]
 
 
@@ -81,6 +99,12 @@ def predict(snapshot_history, model_path=MODEL_PATH):
     """-> {zone: predicted requests in next 15 min}. (SYNTHETIC)"""
     art = load(model_path)
     zones = art["zones"]
+    if art.get("model") is None or pd is None or lgb is None:
+        try:
+            from app.forecasting import baseline
+        except ImportError:
+            from . import baseline
+        return baseline.predict(snapshot_history)
     hist = snapshot_history[-MAX_LAG:]
     R = request_matrix(hist, zones)
     if len(R) < MAX_LAG:                      # early in a run: left-pad with zeros

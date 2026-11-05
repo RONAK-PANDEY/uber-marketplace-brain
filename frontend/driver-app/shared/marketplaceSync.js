@@ -1,8 +1,7 @@
 /**
  * marketplaceSync.js - Real-time synchronization bus between Rider App, Driver App,
- * and Admin Dashboard using standard browser BroadcastChannel and fallback to localStorage.
- * 
- * Works seamlessly across tabs/windows with zero server setup required!
+ * and Admin Dashboard using standard browser BroadcastChannel, cross-port WebSocket relay,
+ * and localStorage fallback.
  */
 
 const CHANNEL_NAME = 'uber_marketplace_brain_sync';
@@ -11,6 +10,8 @@ class MarketplaceSyncBus {
   constructor() {
     this.listeners = new Set();
     this.channel = null;
+    this.ws = null;
+    this.clientId = Math.random().toString(36).substring(7);
 
     if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
       try {
@@ -32,7 +33,30 @@ class MarketplaceSyncBus {
           } catch (err) {}
         }
       });
+      this.initWebSocket();
     }
+  }
+
+  initWebSocket() {
+    try {
+      const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const wsUrl = `${proto}//${location.host}/ws/state`;
+      this.ws = new WebSocket(wsUrl);
+      this.ws.onmessage = (event) => {
+        try {
+          const msg = JSON.parse(event.data);
+          if (msg.type === 'sync' && msg.syncType && msg.senderId !== this.clientId) {
+            this.notify({ type: msg.syncType, payload: msg.payload, timestamp: msg.timestamp });
+          }
+        } catch (err) {}
+      };
+      this.ws.onclose = () => {
+        setTimeout(() => this.initWebSocket(), 3000);
+      };
+      this.ws.onerror = () => {
+        this.ws?.close();
+      };
+    } catch (e) {}
   }
 
   notify(message) {
@@ -57,23 +81,42 @@ class MarketplaceSyncBus {
       type,
       payload,
       timestamp: Date.now(),
-      senderId: Math.random().toString(36).substring(7),
+      senderId: this.clientId,
     };
 
+    // 1. Send via WebSocket to bridge across different ports (5173, 5174, 5175)
+    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+      try {
+        this.ws.send(JSON.stringify({
+          type: 'sync',
+          syncType: type,
+          payload,
+          senderId: this.clientId,
+          timestamp: msg.timestamp,
+        }));
+      } catch (e) {}
+    }
+
+    // 2. BroadcastChannel for same-origin tabs
     if (this.channel) {
       try {
         this.channel.postMessage(msg);
       } catch (e) {}
     }
 
+    // 3. Fallback to localStorage
     if (typeof window !== 'undefined' && window.localStorage) {
       try {
         window.localStorage.setItem(CHANNEL_NAME, JSON.stringify(msg));
       } catch (e) {}
     }
 
-    // Also notify local listeners in the same window
+    // 4. Notify local listeners in the current tab
     this.notify(msg);
+  }
+
+  publish(type, payload = {}) {
+    return this.broadcast(type, payload);
   }
 }
 

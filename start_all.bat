@@ -6,7 +6,9 @@ pushd "%~dp0"
 set "ROOT_DIR=%CD%"
 
 REM Determine if running from parent folder or repo folder
-if exist "%ROOT_DIR%\uber-marketplace-brain\frontend" (
+if exist "%ROOT_DIR%\uber-marketplace-brain-main\frontend" (
+    set "APP_DIR=%ROOT_DIR%\uber-marketplace-brain-main"
+) else if exist "%ROOT_DIR%\uber-marketplace-brain\frontend" (
     set "APP_DIR=%ROOT_DIR%\uber-marketplace-brain"
 ) else (
     set "APP_DIR=%ROOT_DIR%"
@@ -62,14 +64,26 @@ if "%RUN_BACKEND%"=="1" (
 
 REM --- 4. Start Rider App port 5173 ---
 echo [3/4] Starting Rider App port 5173...
+if not exist "%APP_DIR%\frontend\rider-app\node_modules" (
+    echo   - Installing rider-app dependencies...
+    pushd "%APP_DIR%\frontend\rider-app" && call npm install && popd
+)
 start "Rider App :5173" /D "%APP_DIR%\frontend\rider-app" cmd /k "npm run dev"
 
 REM --- 5. Start Driver App port 5174 ---
 echo [4/4] Starting Driver App port 5174...
+if not exist "%APP_DIR%\frontend\driver-app\node_modules" (
+    echo   - Installing driver-app dependencies...
+    pushd "%APP_DIR%\frontend\driver-app" && call npm install && popd
+)
 start "Driver App :5174" /D "%APP_DIR%\frontend\driver-app" cmd /k "npm run dev"
 
 REM --- 6. Start Admin Dashboard port 5175 (Optional) ---
 if exist "%APP_DIR%\frontend\admin-dashboard" (
+    if not exist "%APP_DIR%\frontend\admin-dashboard\node_modules" (
+        echo   - Installing admin-dashboard dependencies...
+        pushd "%APP_DIR%\frontend\admin-dashboard" && call npm install && popd
+    )
     start "Admin Dashboard :5175" /D "%APP_DIR%\frontend\admin-dashboard" cmd /k "npm run dev"
 )
 

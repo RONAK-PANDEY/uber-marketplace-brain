@@ -2,15 +2,26 @@ import time
 import jwt
 import pytest
 
-import tools
-from agents.assistant import Assistant
-from agents.base import Context
-from agents.router import Router, rule_classify
-from anti_crowding import AntiCrowding
-from llm.cache import ResponseCache
-from llm.key_rotator import KeyRotator
-from llm.provider import GeminiHTTPError, LLMProvider
-from positioning import STAY, ZoneState, accept, recommend
+try:
+    from app.agents import tools
+    from app.agents.assistant import Assistant
+    from app.agents.base import Context
+    from app.agents.router import Router, rule_classify
+    from app.recommender.anti_crowding import AntiCrowding
+    from app.agents.llm.cache import ResponseCache
+    from app.agents.llm.key_rotator import KeyRotator
+    from app.agents.llm.provider import GeminiHTTPError, LLMProvider
+    from app.recommender.positioning import STAY, ZoneState, accept, recommend
+except ImportError:
+    import tools
+    from agents.assistant import Assistant
+    from agents.base import Context
+    from agents.router import Router, rule_classify
+    from anti_crowding import AntiCrowding
+    from llm.cache import ResponseCache
+    from llm.key_rotator import KeyRotator
+    from llm.provider import GeminiHTTPError, LLMProvider
+    from positioning import STAY, ZoneState, accept, recommend
 
 SECRET = "s3cret"
 

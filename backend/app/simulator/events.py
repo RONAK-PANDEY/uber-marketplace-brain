@@ -3,10 +3,10 @@
 from dataclasses import dataclass
 import numpy as np
 try:
-    from app.simulator.city import
+    from app.simulator.city import N_ZONES, get_neighbors
 except ImportError:
     try:
-        from .city import
+        from .city import N_ZONES, get_neighbors
     except ImportError:
         from city import N_ZONES, get_neighbors
 

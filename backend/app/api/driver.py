@@ -101,7 +101,7 @@ async def driver_chat(body: DriverChatQuery) -> dict:
     import json
     import os
 
-    ollama_url = os.environ.get("OLLAMA_URL", "http://10.151.32.198:11434").rstrip("/")
+    ollama_url = os.environ.get("OLLAMA_URL", "http://localhost:11434").rstrip("/")
     msg = body.message.lower()
 
     if any(k in msg for k in ["earning", "fare", "rate", "fuel", "calc", "cost", "math", "money", "rupee", "payout", "bonus"]):

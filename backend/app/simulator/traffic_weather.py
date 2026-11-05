@@ -2,10 +2,10 @@
 *** SYNTHETIC DATA: all traffic/weather values are invented for simulation. ***  Deps: numpy."""
 import numpy as np
 try:
-    from app.simulator.city import
+    from app.simulator.city import N_ZONES, ZONE_TYPES, DIST, get_neighbors
 except ImportError:
     try:
-        from .city import
+        from .city import N_ZONES, ZONE_TYPES, DIST, get_neighbors
     except ImportError:
         from city import N_ZONES, ZONE_TYPES, DIST, get_neighbors
 
